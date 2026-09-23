@@ -15,16 +15,23 @@ EXTRACTION_SCHEMA = {
                     "interview_id": {"type": "integer"},
                     "category": {
                         "type": "string",
-                        "enum": ["pain_point", "need", "feature_request", "positive_feedback", "surprise", "quote"]
+                        "enum": [
+                            "pain_point",
+                            "need",
+                            "feature_request",
+                            "positive_feedback",
+                            "surprise",
+                            "quote",
+                        ],
                     },
                     "text": {"type": "string", "minLength": 10, "maxLength": 500},
-                    "significance": {"type": "string", "enum": ["low", "medium", "high"]}
+                    "significance": {"type": "string", "enum": ["low", "medium", "high"]},
                 },
-                "required": ["interview_id", "category", "text", "significance"]
-            }
+                "required": ["interview_id", "category", "text", "significance"],
+            },
         }
     },
-    "required": ["observations"]
+    "required": ["observations"],
 }
 
 SYNTHESIS_SCHEMA = {
@@ -47,12 +54,19 @@ SYNTHESIS_SCHEMA = {
                         "type": "array",
                         "minItems": 1,
                         "maxItems": 3,
-                        "items": {"type": "string", "minLength": 10, "maxLength": 400}
+                        "items": {"type": "string", "minLength": 10, "maxLength": 400},
                     },
-                    "confidence": {"type": "string", "enum": ["high", "medium", "low"]}
+                    "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
                 },
-                "required": ["name", "insight", "participant_count", "observation_count", "quotes", "confidence"]
-            }
+                "required": [
+                    "name",
+                    "insight",
+                    "participant_count",
+                    "observation_count",
+                    "quotes",
+                    "confidence",
+                ],
+            },
         },
         "pain_points": {
             "type": "array",
@@ -64,16 +78,16 @@ SYNTHESIS_SCHEMA = {
                 "properties": {
                     "description": {"type": "string", "minLength": 10, "maxLength": 200},
                     "frequency": {"type": "integer", "minimum": 1},
-                    "impact": {"type": "string", "enum": ["high", "medium", "low"]}
+                    "impact": {"type": "string", "enum": ["high", "medium", "low"]},
                 },
-                "required": ["description", "frequency", "impact"]
-            }
+                "required": ["description", "frequency", "impact"],
+            },
         },
         "unmet_needs": {
             "type": "array",
             "minItems": 0,
             "maxItems": 5,
-            "items": {"type": "string", "minLength": 10, "maxLength": 200}
+            "items": {"type": "string", "minLength": 10, "maxLength": 200},
         },
         "recommendations": {
             "type": "array",
@@ -85,13 +99,13 @@ SYNTHESIS_SCHEMA = {
                 "properties": {
                     "action": {"type": "string", "minLength": 10, "maxLength": 200},
                     "priority": {"type": "string", "enum": ["high", "medium", "low"]},
-                    "evidence": {"type": "string", "minLength": 10, "maxLength": 200}
+                    "evidence": {"type": "string", "minLength": 10, "maxLength": 200},
                 },
-                "required": ["action", "priority", "evidence"]
-            }
-        }
+                "required": ["action", "priority", "evidence"],
+            },
+        },
     },
-    "required": ["themes", "pain_points", "unmet_needs", "recommendations"]
+    "required": ["themes", "pain_points", "unmet_needs", "recommendations"],
 }
 
 
@@ -100,10 +114,10 @@ async def run(ctx, inputs):
     interviews = inputs["interviews"]
     research_objective = inputs["research_objective"]
     participant_context = inputs.get("participant_context", "")
-    
+
     # Assign IDs to interviews
     interview_items = [{"id": index, "text": text} for index, text in enumerate(interviews)]
-    
+
     # Step 1: Extract observations
     extraction = await ctx.models.generate(
         route="extract",
@@ -118,27 +132,27 @@ async def run(ctx, inputs):
         data=interview_items,
         output_schema=EXTRACTION_SCHEMA,
     )
-    
+
     observations = extraction["parsed"]["observations"]
-    
+
     # Validate interview IDs are preserved
     extracted_ids = {obs["interview_id"] for obs in observations}
     expected_ids = set(range(len(interviews)))
     if not extracted_ids.issubset(expected_ids):
         raise ValueError("Extraction must preserve valid interview IDs")
-    
+
     # Cluster observations by category and count frequency
     from collections import defaultdict
-    
+
     by_category = defaultdict(list)
     for obs in observations:
         by_category[obs["category"]].append(obs)
-    
+
     # Build frequency map per interview
     interview_observations = defaultdict(list)
     for obs in observations:
         interview_observations[obs["interview_id"]].append(obs)
-    
+
     # Prepare clustered data for synthesis
     clustered = {
         "total_interviews": len(interviews),
@@ -147,9 +161,9 @@ async def run(ctx, inputs):
         "observations_by_interview": {
             iid: len(obs_list) for iid, obs_list in interview_observations.items()
         },
-        "observations": observations
+        "observations": observations,
     }
-    
+
     # Step 2: Synthesize themes and recommendations
     synthesis = await ctx.models.generate(
         route="synthesize",
@@ -163,13 +177,13 @@ async def run(ctx, inputs):
         data={
             "research_objective": research_objective,
             "participant_context": participant_context,
-            "clustered": clustered
+            "clustered": clustered,
         },
         output_schema=SYNTHESIS_SCHEMA,
     )
-    
+
     result = synthesis["parsed"]
-    
+
     # Render markdown report
     lines = [
         "# Interview Digest",
@@ -178,48 +192,49 @@ async def run(ctx, inputs):
         f"**Interviews:** {len(interviews)}",
         f"**Observations extracted:** {len(observations)}",
     ]
-    
+
     if participant_context:
         lines.append(f"**Participant context:** {participant_context}")
-    
+
     lines.extend(["", "---", "", "## Key Themes", ""])
-    
+
     for theme in result["themes"]:
         lines.append(f"### {theme['name']}")
         lines.append(f"**Insight:** {theme['insight']}")
-        lines.append(f"**Mentioned by:** {theme['participant_count']}/{len(interviews)} participants")
+        lines.append(
+            f"**Mentioned by:** {theme['participant_count']}/{len(interviews)} participants"
+        )
         lines.append(f"**Confidence:** {theme['confidence']}")
         lines.append("")
         lines.append("**Supporting quotes:**")
         for quote in theme["quotes"]:
             lines.append(f"> {quote}")
         lines.append("")
-    
+
     lines.extend(["---", "", "## Pain Points", ""])
     for pain in result["pain_points"]:
-        lines.append(f"- **{pain['description']}** (mentioned by {pain['frequency']}, impact: {pain['impact']})")
-    
+        lines.append(
+            f"- **{pain['description']}** (mentioned by {pain['frequency']}, impact: {pain['impact']})"
+        )
+
     lines.extend(["", "---", "", "## Unmet Needs", ""])
     if result["unmet_needs"]:
         for need in result["unmet_needs"]:
             lines.append(f"- {need}")
     else:
         lines.append("No explicit unmet needs identified.")
-    
+
     lines.extend(["", "---", "", "## Recommendations", ""])
     for rec in result["recommendations"]:
         lines.append(f"### [{rec['priority'].upper()}] {rec['action']}")
         lines.append(f"**Evidence:** {rec['evidence']}")
         lines.append("")
-    
+
     lines.extend(["---", "", "## Limitations", ""])
     lines.append(f"- Sample size: {len(interviews)} interviews")
     lines.append("- Findings reflect stated preferences, not observed behavior")
     lines.append("- Confidence levels based on frequency and clarity of evidence")
-    
+
     content = "\n".join(lines)
-    
-    return {
-        "path": "research/INTERVIEW_DIGEST.md",
-        "content": content
-    }
+
+    return {"path": "research/INTERVIEW_DIGEST.md", "content": content}

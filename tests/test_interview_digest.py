@@ -25,23 +25,43 @@ async def test_two_model_steps_extract_then_synthesize(invalid_ids):
     """Test that extraction preserves IDs and synthesis uses clustered data."""
     module, definition = example_interview_digest()
     calls = []
-    
+
     async def generate(**payload):
         calls.append(payload)
-        
+
         if payload["step"] == "extract_observations":
             if invalid_ids:
                 output = {
                     "observations": [
-                        {"interview_id": 99, "category": "pain_point", "text": "Slow loading", "significance": "high"}
+                        {
+                            "interview_id": 99,
+                            "category": "pain_point",
+                            "text": "Slow loading",
+                            "significance": "high",
+                        }
                     ]
                 }
             else:
                 output = {
                     "observations": [
-                        {"interview_id": 0, "category": "pain_point", "text": "Slow loading", "significance": "high"},
-                        {"interview_id": 1, "category": "need", "text": "Better export", "significance": "medium"},
-                        {"interview_id": 2, "category": "quote", "text": "I love the UI", "significance": "low"}
+                        {
+                            "interview_id": 0,
+                            "category": "pain_point",
+                            "text": "Slow loading",
+                            "significance": "high",
+                        },
+                        {
+                            "interview_id": 1,
+                            "category": "need",
+                            "text": "Better export",
+                            "significance": "medium",
+                        },
+                        {
+                            "interview_id": 2,
+                            "category": "quote",
+                            "text": "I love the UI",
+                            "significance": "low",
+                        },
                     ]
                 }
         else:
@@ -55,7 +75,7 @@ async def test_two_model_steps_extract_then_synthesize(invalid_ids):
                         "participant_count": 2,
                         "observation_count": 2,
                         "quotes": ["Slow loading", "It takes forever to load"],
-                        "confidence": "high"
+                        "confidence": "high",
                     }
                 ],
                 "pain_points": [
@@ -63,24 +83,28 @@ async def test_two_model_steps_extract_then_synthesize(invalid_ids):
                 ],
                 "unmet_needs": ["Better export functionality"],
                 "recommendations": [
-                    {"action": "Optimize page load performance", "priority": "high", "evidence": "2 participants mentioned slow loading"}
-                ]
+                    {
+                        "action": "Optimize page load performance",
+                        "priority": "high",
+                        "evidence": "2 participants mentioned slow loading",
+                    }
+                ],
             }
-        
+
         return {"parsed": output, "text": json.dumps(output)}
-    
+
     context = SimpleNamespace(models=SimpleNamespace(generate=generate), run_id=str(uuid4()))
-    
+
     inputs = {
         "interviews": [
             "Interview 1: User complained about slow loading times",
             "Interview 2: User needs better export feature",
-            "Interview 3: User loves the UI but wants faster performance"
+            "Interview 3: User loves the UI but wants faster performance",
         ],
         "research_objective": "Understand user pain points",
-        "participant_context": "All users are enterprise customers"
+        "participant_context": "All users are enterprise customers",
     }
-    
+
     if invalid_ids:
         with pytest.raises(ValueError, match="preserve valid interview IDs"):
             await module.run(context, inputs)
