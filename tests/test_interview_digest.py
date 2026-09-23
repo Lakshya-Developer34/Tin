@@ -2,7 +2,6 @@
 
 import json
 import runpy
-from copy import deepcopy
 from pathlib import Path
 from types import SimpleNamespace
 from uuid import uuid4
@@ -71,7 +70,10 @@ async def test_two_model_steps_extract_then_synthesize(invalid_ids):
                 "themes": [
                     {
                         "name": "Performance issues",
-                        "insight": "Users experience frustration with slow load times affecting productivity",
+                        "insight": (
+                            "Users experience frustration with slow load times "
+                            "affecting productivity"
+                        ),
                         "participant_count": 2,
                         "observation_count": 2,
                         "quotes": ["Slow loading", "It takes forever to load"],

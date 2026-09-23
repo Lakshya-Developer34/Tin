@@ -170,7 +170,8 @@ async def run(ctx, inputs):
         step="synthesize_themes",
         instructions=(
             "Synthesize the clustered observations into themes, insights, and recommendations. "
-            "Themes must appear in 2+ interviews. Extract verbatim quotes from the original observations. "
+            "Themes must appear in 2+ interviews. Extract verbatim quotes from the "
+            "original observations. "
             "Prioritize recommendations by impact and evidence strength. "
             "Be honest about limitations in the confidence field."
         ),
@@ -214,7 +215,8 @@ async def run(ctx, inputs):
     lines.extend(["---", "", "## Pain Points", ""])
     for pain in result["pain_points"]:
         lines.append(
-            f"- **{pain['description']}** (mentioned by {pain['frequency']}, impact: {pain['impact']})"
+            f"- **{pain['description']}** (mentioned by {pain['frequency']}, "
+            f"impact: {pain['impact']})"
         )
 
     lines.extend(["", "---", "", "## Unmet Needs", ""])
